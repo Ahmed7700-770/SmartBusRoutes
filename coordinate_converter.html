@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>محوّل الإحداثيات بالجملة (روابط + أسماء في أسطر متناوبة)</title>
+<style>
+  :root{
+    --bg:#0f172a;        /* slate-900 */
+    --card:#111827;      /* gray-900 */
+    --muted:#94a3b8;     /* slate-400 */
+    --text:#e5e7eb;      /* gray-200 */
+    --brand:#06b6d4;     /* cyan-500 */
+    --accent:#22c55e;    /* green-500 */
+    --danger:#ef4444;    /* red-500 */
+    --border:rgba(148,163,184,0.25);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;
+    background: radial-gradient(1200px 600px at 80% -10%, rgba(34,197,94,0.08), transparent 40%),
+                radial-gradient(900px 600px at 10% -10%, rgba(6,182,212,0.10), transparent 40%),
+                var(--bg);
+    color:var(--text);font-family:"Tajawal",system-ui,Segoe UI,Roboto,"Noto Naskh Arabic",sans-serif;
+    padding:24px;
+  }
+  .wrap{max-width:1200px;margin:0 auto}
+  h1{font-size:clamp(22px,3vw,30px);margin:0 0 6px}
+  p.sub{color:var(--muted);margin-top:0}
+  .card{
+    background:linear-gradient(180deg, rgba(17,24,39,0.95), rgba(17,24,39,0.98));
+    border:1px solid var(--border);
+    border-radius:16px;padding:18px 18px 12px;box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  }
+  textarea{
+    width:100%;min-height:220px;background:#0b1220;
+    color:var(--text);border:1px solid var(--border);border-radius:12px;
+    padding:12px;resize:vertical;line-height:1.7
+  }
+  .hint{color:var(--muted);font-size:14px;margin-top:8px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+  .row .field{flex:1 1 180px}
+  select, input[type="text"]{
+    width:100%;padding:10px 12px;border:1px solid var(--border);
+    border-radius:10px;background:#0b1220;color:var(--text)
+  }
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:10px 14px;border-radius:10px;border:1px solid var(--border);
+    background:#0b1220;color:var(--text);cursor:pointer;
+    transition:transform .08s ease, background .2s
+  }
+  .btn:hover{background:#0e1527}
+  .btn:active{transform:translateY(1px)}
+  .btn.brand{background:linear-gradient(90deg, rgba(6,182,212,.15), rgba(34,197,94,.15));border-color:transparent}
+  .btn.accent{background:linear-gradient(90deg, rgba(34,197,94,.2), rgba(6,182,212,.2));border-color:transparent}
+  .btn.danger{background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.35)}
+  table{width:100%;border-collapse:collapse;margin-top:14px}
+  th, td{border-bottom:1px solid var(--border);padding:10px 8px;text-align:right;vertical-align:top}
+  th{color:#d1d5db}
+  td code{background:#0b1220;padding:4px 6px;border-radius:6px}
+  .footer{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .badge{font-size:12px;color:var(--muted)}
+  .small{font-size:12px;color:var(--muted)}
+  .err{color:var(--danger);font-size:13px}
+  .success{color:var(--accent);font-size:13px}
+  .pill{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;font-size:12px;color:var(--muted)}
+  .loading {color: var(--brand);}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="wrap">
+    <h1>محوّل الإحداثيات بالجملة</h1>
+    <p class="sub">
+      أدخل البيانات بالصيغة التالية (سطر رابط ثم السطر التالي اسم الطالب، وتكرار ذلك):<br>
+      <code>https://maps.google.com/?q=25.248938,51.558270</code><br>
+      <code>محمد حمد شير</code><br>
+      <code>https://maps.google.com/?q=25.3,51.6</code><br>
+      <code>فاطمة علي</code><br>
+      يدعم كذلك الصيغ السابقة مثل سطر واحد يحتوي الاسم والإحداثيات معًا.
+    </p>
+
+    <div class="card">
+      <div class="row">
+        <div class="field" style="flex:2 1 480px">
+          <label class="pill">الإدخال</label>
+          <textarea id="input" placeholder="ألصق هنا روابط خرائط وأسماء في أسطر متناوبة، أو صيغ أخرى مدعومة."></textarea>
+          <div class="hint">الروابط المدعومة: <code>?q=lat,lon</code> أو <code>@lat,lon,zoom</code>. كما يمكن: <code>الاسم, lat, lon</code> في سطر واحد.</div>
+        </div>
+        <div class="field">
+          <label class="pill">الصيغ المطلوب توليدها</label>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+            <label><input type="checkbox" id="fmtDD" checked> درجات عشرية DD</label>
+            <label><input type="checkbox" id="fmtDMS" checked> درجات/دقائق/ثوانٍ DMS</label>
+            <label><input type="checkbox" id="fmtDDM" checked> درجات ودقائق عشرية DDM</label>
+            <label><input type="checkbox" id="fmtUTM"> UTM (تقريبي)</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn brand" id="convertBtn">تحويل الآن</button>
+        <button class="btn" id="copyBtn">نسخ الجدول</button>
+        <button class="btn accent" id="csvBtn">تنزيل CSV</button>
+        <button class="btn danger" id="clearBtn">مسح</button>
+        <span id="status" class="badge"></span>
+      </div>
+
+      <div style="overflow:auto">
+        <table id="outTable">
+          <thead>
+            <tr>
+              <th>اسم الطالب</th>
+              <th>DD (lat, lon)</th>
+              <th>DMS</th>
+              <th>DDM</th>
+              <th>UTM</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="footer small">
+        <span>ملف CSV سيكون بالترميز UTF-8 مع دعم كامل للغة العربية.</span>
+        <span>تحقق من القيم قبل استخدامها في الأعمال الحساسة.</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ===== Utilities =====
+function isUrl(s){ return /^https?:\/\//i.test(s.trim()); }
+
+function parseLatLonFromUrl(url) {
+  try {
+    const u = new URL(url.trim());
+    // Try ?q=lat,lon
+    const q = u.searchParams.get('q');
+    if (q && /-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?/.test(q)) {
+      const [lat, lon] = q.split(',').map(s => parseFloat(s.trim()));
+      return {lat, lon};
+    }
+    // Try @lat,lon,zoom
+    const atMatch = u.href.match(/@(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)/);
+    if (atMatch) {
+      const lat = parseFloat(atMatch[1]);
+      const lon = parseFloat(atMatch[3]);
+      return {lat, lon};
+    }
+  } catch(e) {}
+  return null;
+}
+
+function toDMS(lat, lon){
+  function conv(v, isLat){
+    const dir = v>=0 ? (isLat?'N':'E') : (isLat?'S':'W');
+    const av = Math.abs(v);
+    const d = Math.floor(av);
+    const mFloat = (av - d) * 60;
+    const m = Math.floor(mFloat);
+    const s = (mFloat - m) * 60;
+    return `${d}°${m}'${s.toFixed(2)}"${dir}`;
+  }
+  return `${conv(lat,true)} , ${conv(lon,false)}`;
+}
+
+function toDDM(lat, lon){
+  function conv(v, isLat){
+    const dir = v>=0 ? (isLat?'N':'E') : (isLat?'S':'W');
+    const av = Math.abs(v);
+    const d = Math.floor(av);
+    const m = (av - d) * 60;
+    return `${d}°${m.toFixed(3)}'${dir}`;
+  }
+  return `${conv(lat,true)} , ${conv(lon,false)}`;
+}
+
+// Simple UTM conversion (approx) – adequate for quick reference.
+function toUTM(lat, lon){
+  const a = 6378137.0;
+  const f = 1/298.257223563;
+  const k0 = 0.9996;
+  const b = a*(1 - f);
+  const e = Math.sqrt(1 - (b*b)/(a*a));
+
+  const zone = Math.floor((lon + 180)/6) + 1;
+  const lon0 = ((zone-1)*6 - 180 + 3) * Math.PI/180;
+
+  const φ = lat * Math.PI/180;
+  const λ = lon * Math.PI/180;
+
+  const N = a / Math.sqrt(1 - Math.pow(e*Math.sin(φ),2));
+  const T = Math.tan(φ)*Math.tan(φ);
+  const C = (e*e/(1 - e*e)) * Math.cos(φ)*Math.cos(φ);
+  const A = Math.cos(φ)*(λ - lon0);
+
+  const M = a*((1 - e*e/4 - 3*Math.pow(e,4)/64 - 5*Math.pow(e,6)/256)*φ
+           - (3*e*e/8 + 3*Math.pow(e,4)/32 + 45*Math.pow(e,6)/1024)*Math.sin(2*φ)
+           + (15*Math.pow(e,4)/256 + 45*Math.pow(e,6)/1024)*Math.sin(4*φ)
+           - (35*Math.pow(e,6)/3072)*Math.sin(6*φ));
+
+  let easting = k0*N*(A + (1 - T + C)*Math.pow(A,3)/6 + (5 - 18*T + T*T + 72*C - 58*(e*e/(1-e*e)))*Math.pow(A,5)/120) + 500000.0;
+  let northing = k0*(M + N*Math.tan(φ)*(A*A/2 + (5 - T + 9*C + 4*C*C)*Math.pow(A,4)/24 + (61 - 58*T + T*T + 600*C - 330*(e*e/(1-e*e)))*Math.pow(A,6)/720));
+
+  const hemisphere = lat >= 0 ? 'N' : 'S';
+  if (lat < 0) northing += 10000000.0;
+
+  const letter = latBandLetter(lat);
+  return `Zone ${zone}${letter} ${hemisphere} ${easting.toFixed(2)} E, ${northing.toFixed(2)} N`;
+}
+
+function latBandLetter(lat){
+  const bands = "CDEFGHJKLMNPQRSTUVWX"; // X up to 84N
+  if (lat <= -80) return 'C';
+  if (lat >= 84) return 'X';
+  const idx = Math.floor((lat + 80) / 8);
+  return bands[idx] || 'N';
+}
+
+// Previous flexible parser (still supported)
+function parseFlexibleLine(line){
+  let s = line.trim();
+  if (!s) return null;
+  
+  // Try direct coordinates format "lat,lon"
+  const directCoords = s.match(/^(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)$/);
+  if (directCoords) {
+    const lat = parseFloat(directCoords[1]);
+    const lon = parseFloat(directCoords[3]);
+    if (isFinite(lat) && isFinite(lon) && Math.abs(lat)<=90 && Math.abs(lon)<=180){
+      return {name:"", lat, lon};
+    }
+    return {error:`قيم غير صالحة لخط العرض/الطول في السطر: ${line}`};
+  }
+  
+  // Try "name, lat, lon" or "name, url"
+  let parts = s.split(/[,;|]/);
+  if (parts.length === 1){
+    parts = s.split(/\s{2,}/); // double-space separated
+  }
+  if (parts.length >= 2){
+    const name = parts[0].trim();
+    const second = parts.slice(1).join(' ').trim();
+
+    const urlMatch = second.match(/https?:\/\/\S+/);
+    if (urlMatch){
+      const p = parseLatLonFromUrl(urlMatch[0]);
+      if (p) return {name, lat:p.lat, lon:p.lon};
+      return {error:`تعذر استخراج الإحداثيات من الرابط في السطر: ${line}`};
+    }
+
+    const nums = second.match(/-?\d+(\.\d+)?/g);
+    if (nums && nums.length >= 2){
+      const lat = parseFloat(nums[0]);
+      const lon = parseFloat(nums[1]);
+      if (isFinite(lat) && isFinite(lon) && Math.abs(lat)<=90 && Math.abs(lon)<=180){
+        return {name, lat, lon};
+      }
+      return {error:`قيم غير صالحة لخط العرض/الطول في السطر: ${line}`};
+    }
+  }
+  // "name lat lon"
+  const three = s.match(/^(.+?)\s+(-?\d+(\.\d+)?)\s+(-?\d+(\.\d+)?)$/);
+  if (three){
+    const name = three[1].trim();
+    const lat = parseFloat(three[2]);
+    const lon = parseFloat(three[4]);
+    if (isFinite(lat) && isFinite(lon) && Math.abs(lat)<=90 && Math.abs(lon)<=180){
+      return {name, lat, lon};
+    }
+  }
+  // Just URL (no name)
+  const justUrl = s.match(/https?:\/\/\S+/);
+  if (justUrl){
+    const p = parseLatLonFromUrl(justUrl[0]);
+    if (p) return {name:"", lat:p.lat, lon:p.lon};
+  }
+  return {error:`تعذر فهم السطر: ${line}`};
+}
+
+function fmtDD(lat, lon){ return `${lat.toFixed(6)} , ${lon.toFixed(6)}`; }
+
+// ===== Main logic =====
+const input = document.getElementById('input');
+const outBody = document.querySelector('#outTable tbody');
+const statusEl = document.getElementById('status');
+
+document.getElementById('convertBtn').addEventListener('click', () => {
+  const rawLines = input.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  outBody.innerHTML='';
+  let ok = 0, bad = 0;
+
+  const wantDD = document.getElementById('fmtDD').checked;
+  const wantDMS = document.getElementById('fmtDMS').checked;
+  const wantDDM = document.getElementById('fmtDDM').checked;
+  const wantUTM = document.getElementById('fmtUTM').checked;
+
+  // Support alternating lines: URL then NAME (or NAME then URL)
+  let i = 0;
+  while (i < rawLines.length){
+    const a = rawLines[i];
+    const b = rawLines[i+1] || "";
+
+    // Case 1: a is URL and b is NAME
+    if (isUrl(a) && b && !isUrl(b)){
+      const p = parseLatLonFromUrl(a);
+      if (p){
+        ok++;
+        renderRow(b, p.lat, p.lon, wantDD, wantDMS, wantDDM, wantUTM);
+      }else{
+        bad++; renderError(`تعذر استخراج الإحداثيات من: ${a}`);
+      }
+      i += 2;
+      continue;
+    }
+    // Case 2: a is NAME and b is URL
+    if (!isUrl(a) && b && isUrl(b)){
+      const p = parseLatLonFromUrl(b);
+      if (p){
+        ok++;
+        renderRow(a, p.lat, p.lon, wantDD, wantDMS, wantDDM, wantUTM);
+      }else{
+        bad++; renderError(`تعذر استخراج الإحداثيات من: ${b}`);
+      }
+      i += 2;
+      continue;
+    }
+    // Case 3: a is direct coordinates (lat,lon) and b is NAME
+    const directCoordsA = a.match(/^(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)$/);
+    if (directCoordsA && b && !isUrl(b) && !directCoordsA){
+      const lat = parseFloat(directCoordsA[1]);
+      const lon = parseFloat(directCoordsA[3]);
+      if (isFinite(lat) && isFinite(lon) && Math.abs(lat)<=90 && Math.abs(lon)<=180){
+        ok++;
+        renderRow(b, lat, lon, wantDD, wantDMS, wantDDM, wantUTM);
+        i += 2;
+        continue;
+      }
+    }
+    // Case 4: a is NAME and b is direct coordinates (lat,lon)
+    const directCoordsB = b.match(/^(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)$/);
+    if (!isUrl(a) && directCoordsB){
+      const lat = parseFloat(directCoordsB[1]);
+      const lon = parseFloat(directCoordsB[3]);
+      if (isFinite(lat) && isFinite(lon) && Math.abs(lat)<=90 && Math.abs(lon)<=180){
+        ok++;
+        renderRow(a, lat, lon, wantDD, wantDMS, wantDDM, wantUTM);
+        i += 2;
+        continue;
+      }
+    }
+    // Fallback: treat single line with flexible parser
+    const parsed = parseFlexibleLine(a);
+    if (parsed && !parsed.error){
+      ok++;
+      renderRow(parsed.name || "—", parsed.lat, parsed.lon, wantDD, wantDMS, wantDDM, wantUTM);
+    }else{
+      bad++; renderError(parsed && parsed.error ? parsed.error : `تعذر فهم السطر: ${a}`);
+    }
+    i += 1;
+  }
+
+  statusEl.textContent = `تم تحويل ${ok} سطر${ok!==1?'اً':''}${bad?` • أخطاء: ${bad}`:''}`;
+  statusEl.className = bad? 'err' : 'success';
+});
+
+function renderRow(name, lat, lon, wantDD, wantDMS, wantDDM, wantUTM){
+  const row = {
+    name: name || "—",
+    dd: wantDD ? fmtDD(lat,lon) : "—",
+    dms: wantDMS ? toDMS(lat,lon) : "—",
+    ddm: wantDDM ? toDDM(lat,lon) : "—",
+    utm: wantUTM ? toUTM(lat,lon) : "—"
+  };
+  addRow(row);
+}
+
+function renderError(msg){
+  addRow({name:"—", dd:"—", dms:`❌ ${msg}`, ddm:"—", utm:"—"});
+}
+
+function addRow({name, dd, dms, ddm, utm}){
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${escapeHtml(name)}</td>
+    <td><code>${escapeHtml(dd)}</code></td>
+    <td><code>${escapeHtml(dms)}</code></td>
+    <td><code>${escapeHtml(ddm)}</code></td>
+    <td><code>${escapeHtml(utm)}</code></td>
+  `;
+  outBody.appendChild(tr);
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  input.value=''; outBody.innerHTML=''; statusEl.textContent='';
+});
+
+// تحسين دالة نسخ الجدول لتعمل في جميع المتصفحات
+document.getElementById('copyBtn').addEventListener('click', ()=>{
+  // التحقق من وجود بيانات في الجدول
+  if (outBody.children.length === 0) {
+    flash('لا توجد بيانات لنسخها. قم بالتحويل أولاً.', 'err');
+    return;
+  }
+  
+  // إنشاء نص الجدول
+  const rows = [];
+  
+  // إضافة العناوين
+  const headers = ['اسم الطالب', 'DD (lat, lon)', 'DMS', 'DDM', 'UTM'];
+  rows.push(headers.join('\t'));
+  
+  // إضافة البيانات
+  for (const tr of outBody.querySelectorAll('tr')){
+    const cols = [...tr.children].map(td => {
+      // استخراج النص من الخلية مع إزالة علامات HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = td.innerHTML;
+      return tempDiv.textContent || tempDiv.innerText || '';
+    });
+    rows.push(cols.join('\t'));
+  }
+  
+  const tableText = rows.join('\n');
+  
+  // نسخ النص إلى الحافظة باستخدام الطريقة الحديثة مع fallback للطرق القديمة
+  if (navigator.clipboard && window.isSecureContext) {
+    // الطريقة الحديثة (تعمل في HTTPS أو localhost)
+    navigator.clipboard.writeText(tableText).then(() => {
+      flash('تم نسخ الجدول إلى الحافظة بنجاح!');
+    }).catch(err => {
+      console.error('فشل النسخ باستخدام Clipboard API:', err);
+      useFallbackCopy(tableText);
+    });
+  } else {
+    // الطريقة القديمة المتوافقة
+    useFallbackCopy(tableText);
+  }
+});
+
+// دالة النسخ الاحتياطية
+function useFallbackCopy(text) {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.opacity = '0';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    if (successful) {
+      flash('تم نسخ الجدول إلى الحافظة بنجاح!');
+    } else {
+      flash('تعذر النسخ. يرجى نسخ الجدول يدوياً.', 'err');
+    }
+  } catch (err) {
+    console.error('فشل النسخ باستخدام execCommand:', err);
+    document.body.removeChild(textArea);
+    flash('تعذر النسخ. يرجى نسخ الجدول يدوياً.', 'err');
+  }
+}
+
+// تحسين دالة تنزيل CSV لدعم اللغة العربية بشكل صحيح
+document.getElementById('csvBtn').addEventListener('click', ()=>{
+  // التحقق من وجود بيانات في الجدول
+  if (outBody.children.length === 0) {
+    flash('لا توجد بيانات لتنزيلها. قم بالتحويل أولاً.', 'err');
+    return;
+  }
+  
+  const headers = ['اسم الطالب', 'الإحداثيات العشرية DD', 'درجات/دقائق/ثوانٍ DMS', 'درجات ودقائق عشرية DDM', 'UTM'];
+  const lines = [headers.join(',')];
+  
+  for (const tr of outBody.querySelectorAll('tr')){
+    const cols = [...tr.children].map(td => {
+      // استخدام النقاط بدلاً من الفواصل في الأرقام
+      let text = td.textContent || td.innerText || '';
+      // استبدال الفواصل في الأرقام بنقاط (لضمان قراءة الأرقام بشكل صحيح)
+      text = text.replace(/(\d+),(\d+)/g, '$1.$2');
+      // وضع النص بين علامتي اقتباس لحماية الأحرف الخاصة والفاصلات
+      return `"${text}"`;
+    });
+    lines.push(cols.join(','));
+  }
+  
+  // إضافة BOM (Byte Order Mark) لضمان التعرف على الترميز UTF-8
+  const BOM = "\uFEFF";
+  const csvContent = BOM + lines.join('\n');
+  
+  // إنشاء الملف بترميز UTF-8
+  const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'الإحداثيات_المحولة.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  flash('تم تنزيل ملف CSV باللغة العربية.');
+});
+
+function flash(msg, type = 'success'){
+  statusEl.textContent = msg;
+  statusEl.className = type === 'err' ? 'err' : 'success';
+  setTimeout(()=>{ statusEl.textContent=''; }, 3000);
+}
+</script>
+</body>
+</html>
