@@ -1091,7 +1091,7 @@
             التقاط من الخريطة
           </button>
         </div>
-        <div class="hint">يمكنك سحب العلامات على الخريطة مباشرة لتحديث المواقع</div>
+        <div class="hint">يمكنك سحب العلامات على الخريطة مباشرة لتحديد المواقع</div>
       </div>
     </div>
 
@@ -1124,6 +1124,10 @@
           </button>
           <button id="clearStudents" class="btn-danger">
             <i class="fas fa-trash"></i>
+            مسح الكل
+          </button>
+          <button id="clearAll" class="btn-danger">
+            <i class="fas fa-broom"></i>
             مسح الكل
           </button>
         </div>
@@ -1295,6 +1299,9 @@
         <i class="fas fa-chevron-down"></i>
       </div>
       <div class="card-content">
+        <button id="copyAllStudents" class="btn-outline" style="margin-bottom: 16px; width: 100%;">
+          <i class="fas fa-copy"></i> نسخ جميع الطلاب
+        </button>
         <div id="studentsByRoute" class="student-list-route"></div>
       </div>
     </div>
@@ -1600,6 +1607,51 @@ function clearStudents() {
     renderStudentMarkers();
     updateStudentsList();
     toast('تم حذف جميع الطلاب');
+  }
+}
+
+function clearAll() {
+  if (confirm('هل تريد مسح جميع البيانات (الطلاب، المسارات، والإعدادات)؟')) {
+    // مسح الطلاب
+    students = [];
+    renderStudentMarkers();
+    updateStudentsList();
+    
+    // مسح المسارات
+    clearRoutes();
+    
+    // إعادة تعيين الحقول
+    document.getElementById('school').value = '25.285, 51.531';
+    document.getElementById('supervisor').value = '25.300, 51.500';
+    document.getElementById('busSizes').value = '39,39,35';
+    document.getElementById('algorithm').value = 'nearest';
+    document.getElementById('apiKey').value = '';
+    document.getElementById('aiModel').value = 'gpt-3.5-turbo';
+    document.getElementById('bulk').value = '';
+    
+    // إعادة تعيين نوع المسار
+    window.selectedRouteType = 'both';
+    document.querySelectorAll('.route-type-btn').forEach(btn => {
+      if (btn.getAttribute('data-type') === 'both') {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    
+    // إعادة تعيين الخريطة
+    setMarkersFromInput();
+    
+    // إخفاء عناصر التحكم في الرسوم المتحركة
+    document.getElementById('animationControls').style.display = 'none';
+    
+    // مسح قائمة الطلاب حسب المسارات وروابط المسارات
+    document.getElementById('studentsByRoute').innerHTML = '';
+    document.getElementById('routeLinks').innerHTML = '';
+    document.getElementById('summary').style.display = 'none';
+    document.getElementById('aiSuggestions').style.display = 'none';
+    
+    toast('تم مسح جميع البيانات');
   }
 }
 
@@ -2259,6 +2311,7 @@ function bindEvents() {
   document.getElementById('useMapBtn').addEventListener('click', useMapMarkers);
   document.getElementById('addStudent').addEventListener('click', addStudent);
   document.getElementById('clearStudents').addEventListener('click', clearStudents);
+  document.getElementById('clearAll').addEventListener('click', clearAll);
   document.getElementById('addBulk').addEventListener('click', addBulkStudents);
   
   document.querySelectorAll('.route-type-btn').forEach(btn => {
@@ -2274,6 +2327,9 @@ function bindEvents() {
   document.getElementById('exportXlsx').addEventListener('click', exportToExcel);
   document.getElementById('savePlan').addEventListener('click', savePlan);
   document.getElementById('loadPlanInput').addEventListener('change', loadPlan);
+  
+  // حدث نسخ جميع الطلاب
+  document.getElementById('copyAllStudents').addEventListener('click', copyAllStudents);
 }
 
 function toggleApiKeyVisibility() {
@@ -2740,6 +2796,95 @@ function updateStudentsByRoute(routes) {
   });
 }
 
+function copyAllStudents() {
+  if (lastRoutes.length === 0) {
+    alert('لا توجد مسارات لنسخها');
+    return;
+  }
+  
+  let text = '';
+  
+  lastRoutes.forEach(route => {
+    text += `الباص ${route.busIndex + 1} - ${route.type === 'morning' ? 'مسار صباحي' : 'مسار مسائي'}:\n`;
+    
+    // استخدام الترتيب المحسن إن وجد
+    const displayStudents = route.orderedStudents && route.orderedStudents.length > 0 
+      ? route.orderedStudents 
+      : route.students;
+    
+    displayStudents.forEach((student, index) => {
+      text += `${index + 1}. ${student.name} - ${student.lat.toFixed(6)}, ${student.lng.toFixed(6)}\n`;
+    });
+    
+    text += '\n';
+  });
+  
+  navigator.clipboard.writeText(text).then(function() {
+    toast('تم نسخ جميع الطلاب إلى الحافظة');
+  }, function(err) {
+    console.error('فشل في نسخ النص: ', err);
+    // طريقة بديلة للمتصفحات القديمة
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textArea);
+    toast('تم نسخ جميع الطلاب إلى الحافظة');
+  });
+}
+
+// ==================== وظائف تقسيم روابط جوجل ====================
+function generateGoogleMapsUrl(route) {
+  // جميع نقاط المسار: البداية، الطلاب (مرتبين)، النهاية
+  const waypoints = route.coordinates.map(coord => `${coord[0]},${coord[1]}`);
+  
+  // إذا كان عدد النقاط أكثر من 10، نقسم المسار إلى عدة روابط
+  if (waypoints.length > 10) {
+    return generateMultipleGoogleMapsUrls(waypoints);
+  } else {
+    // إذا كانت النقاط أقل من أو تساوي 10، نستخدم الرابط العادي
+    return generateSingleGoogleMapsUrl(waypoints);
+  }
+}
+
+function generateMultipleGoogleMapsUrls(waypoints) {
+  const urls = [];
+  const maxPointsPerUrl = 10; // الحد الأقصى للنقاط في كل رابط
+  
+  // تقسيم النقاط إلى أجزاء
+  for (let i = 0; i < waypoints.length; i += maxPointsPerUrl - 1) {
+    const chunk = waypoints.slice(i, i + maxPointsPerUrl);
+    
+    // التأكد من أن الجزء الأخير يحتوي على نقطة النهاية
+    if (i + maxPointsPerUrl >= waypoints.length) {
+      chunk.push(waypoints[waypoints.length - 1]);
+    }
+    
+    // إنشاء رابط لهذا الجزء
+    const url = generateSingleGoogleMapsUrl(chunk);
+    urls.push(url);
+  }
+  
+  return urls;
+}
+
+function generateSingleGoogleMapsUrl(waypoints) {
+  const origin = waypoints[0];
+  const destination = waypoints[waypoints.length - 1];
+  const waypointsStr = waypoints.slice(1, -1).join('|');
+  
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+  
+  // إضافة نقاط الطريق إذا كانت موجودة
+  if (waypointsStr) {
+    url += `&waypoints=${waypointsStr}`;
+  }
+  
+  return url;
+}
+
+// ==================== وظيفة تحديث روابط المسارات ====================
 function updateRouteLinks(routes) {
   const container = document.getElementById('routeLinks');
   container.innerHTML = '';
@@ -2753,72 +2898,63 @@ function updateRouteLinks(routes) {
     const routeLink = document.createElement('div');
     routeLink.className = 'route-link';
     
-    // إنشاء رابط خرائط جوجل للمسار
-    const googleMapsUrl = generateGoogleMapsUrl(route);
+    // إنشاء رابط/روابط خرائط جوجل للمسار
+    const googleMapsUrls = generateGoogleMapsUrl(route);
     const waypointCount = route.coordinates.length;
     
-    routeLink.innerHTML = `
-      <div class="route-link-title">
-        <i class="fas fa-bus" style="color: ${getBusColor(route.busIndex)};"></i>
-        الباص ${route.busIndex + 1} - ${route.type === 'morning' ? 'مسار صباحي' : 'مسار مسائي'}
-      </div>
-      <div class="route-link-details">
-        <span>${route.students.length} طالب</span>
-        <span>${route.route ? (route.route.distance / 1000).toFixed(1) + ' كم' : 'غير معروف'}</span>
-      </div>
-      <div class="route-link-info">
-        <i class="fas fa-map-marker-alt"></i> ${waypointCount} نقطة في المسار
-        ${waypointCount > 40 ? '<span class="warning-text"> (تم اختصار النقاط لتناسب خرائط جوجل)</span>' : ''}
-      </div>
-      <a href="${googleMapsUrl}" target="_blank" class="google-maps-link">
-        <i class="fas fa-external-link-alt"></i> فتح في خرائط جوجل
-      </a>
-      <button onclick="copyGoogleMapsLink('${googleMapsUrl}')" class="btn-outline" style="padding: 6px 10px; font-size: 12px; width: 100%; margin-top: 6px;">
-        <i class="fas fa-copy"></i> نسخ الرابط
-      </button>
-    `;
+    // إذا كان الرابط عبارة عن مصفوفة (عدة روابط)
+    if (Array.isArray(googleMapsUrls)) {
+      routeLink.innerHTML = `
+        <div class="route-link-title">
+          <i class="fas fa-bus" style="color: ${getBusColor(route.busIndex)};"></i>
+          الباص ${route.busIndex + 1} - ${route.type === 'morning' ? 'مسار صباحي' : 'مسار مسائي'}
+        </div>
+        <div class="route-link-details">
+          <span>${route.students.length} طالب</span>
+          <span>${route.route ? (route.route.distance / 1000).toFixed(1) + ' كم' : 'غير معروف'}</span>
+        </div>
+        <div class="route-link-info">
+          <i class="fas fa-map-marker-alt"></i> ${waypointCount} نقطة في المسار
+          <span class="warning-text"> (تم تقسيم المسار إلى ${googleMapsUrls.length} أجزاء)</span>
+        </div>
+        <div class="route-links-container" style="margin-top: 8px;">
+          ${googleMapsUrls.map((url, index) => `
+            <div style="display: flex; gap: 8px; margin-bottom: 6px; align-items: center;">
+              <a href="${url}" target="_blank" class="google-maps-link" style="flex: 1;">
+                <i class="fas fa-external-link-alt"></i> الجزء ${index + 1}
+              </a>
+              <button onclick="copyGoogleMapsLink('${url}')" class="btn-outline" style="padding: 4px 8px; font-size: 11px;">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      // إذا كان الرابط واحدًا فقط
+      routeLink.innerHTML = `
+        <div class="route-link-title">
+          <i class="fas fa-bus" style="color: ${getBusColor(route.busIndex)};"></i>
+          الباص ${route.busIndex + 1} - ${route.type === 'morning' ? 'مسار صباحي' : 'مسار مسائي'}
+        </div>
+        <div class="route-link-details">
+          <span>${route.students.length} طالب</span>
+          <span>${route.route ? (route.route.distance / 1000).toFixed(1) + ' كم' : 'غير معروف'}</span>
+        </div>
+        <div class="route-link-info">
+          <i class="fas fa-map-marker-alt"></i> ${waypointCount} نقطة في المسار
+        </div>
+        <a href="${googleMapsUrls}" target="_blank" class="google-maps-link">
+          <i class="fas fa-external-link-alt"></i> فتح في خرائط جوجل
+        </a>
+        <button onclick="copyGoogleMapsLink('${googleMapsUrls}')" class="btn-outline" style="padding: 6px 10px; font-size: 12px; width: 100%; margin-top: 6px;">
+          <i class="fas fa-copy"></i> نسخ الرابط
+        </button>
+      `;
+    }
     
     container.appendChild(routeLink);
   });
-}
-
-// ==================== وظيفة إنشاء رابط خرائط جوجل ====================
-function generateGoogleMapsUrl(route) {
-  // جميع نقاط المسار: البداية، الطلاب (مرتبين)، النهاية
-  const waypoints = route.coordinates.map(coord => `${coord[0]},${coord[1]}`);
-  
-  // إذا كان عدد النقاط أكثر من 40، نأخذ النقاط الرئيسية فقط لتجنب تجاوز الحد
-  let waypointsForUrl = waypoints;
-  if (waypoints.length > 40) {
-    // نأخذ 40 نقطة بشكل متساوي من المسار
-    waypointsForUrl = [];
-    const step = Math.floor(waypoints.length / 40);
-    for (let i = 0; i < waypoints.length && waypointsForUrl.length < 40; i += step) {
-      waypointsForUrl.push(waypoints[i]);
-    }
-    // نتأكد من إضافة نقطة البداية والنهاية
-    if (!waypointsForUrl.includes(waypoints[0])) {
-      waypointsForUrl.unshift(waypoints[0]);
-    }
-    if (!waypointsForUrl.includes(waypoints[waypoints.length - 1])) {
-      waypointsForUrl.push(waypoints[waypoints.length - 1]);
-    }
-    // نحافظ على 40 نقطة كحد أقصى
-    waypointsForUrl = waypointsForUrl.slice(0, 40);
-  }
-  
-  const origin = waypointsForUrl[0];
-  const destination = waypointsForUrl[waypointsForUrl.length - 1];
-  const waypointsStr = waypointsForUrl.slice(1, -1).join('|');
-  
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
-  
-  // إضافة نقاط الطريق إذا كانت موجودة
-  if (waypointsStr) {
-    url += `&waypoints=${waypointsStr}`;
-  }
-  
-  return url;
 }
 
 // ==================== وظيفة نسخ رابط خرائط جوجل ====================
